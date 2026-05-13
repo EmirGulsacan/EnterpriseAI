@@ -1,4 +1,4 @@
-﻿
+
 namespace EnterpriseAI.Shared.Models
 {
     public class DocumentChunk
@@ -10,5 +10,7 @@ namespace EnterpriseAI.Shared.Models
         public int PageNumber { get; set; }
         public float[] Embedding { get; set; }
         public bool IsImageDescription { get; set; }
+        public string SourceDocument { get; set; }
+        public string FileHash { get; set; }
     }
 }

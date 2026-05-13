@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
+using System.Security.Cryptography;
 
 using EnterpriseAI.Shared.Utils;
 
@@ -49,15 +50,39 @@ namespace EnterpriseAI.DataIngester.Services
             Console.WriteLine($"[SYSTEM] Preparing database: {_dbPath}");
             Console.WriteLine($"[CONFIG] Chunk Size: {_chunkingOptions.ChunkSize} chars | Overlap: {_chunkingOptions.ChunkOverlap} chars | Min Length: {_chunkingOptions.MinChunkLength} chars");
 
+            var fileBytes = await File.ReadAllBytesAsync(pdfPath);
+            string fileHash = ComputeSha256Hash(fileBytes);
+            string fileName = Path.GetFileName(pdfPath);
+
             using var db = new LiteDatabase(_dbPath);
             var collection = db.GetCollection<DocumentChunk>("KnowledgeBase");
 
-            Console.WriteLine("[SYSTEM] Clearing existing records...");
-            collection.DeleteAll();
+            // Duplicate Document Check
+            var existingHash = collection.FindOne(x => x.FileHash == fileHash);
+            if (existingHash != null)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\n[ERROR] UPLOAD REJECTED!");
+                Console.WriteLine($"A document with the exact same content already exists in the system.");
+                Console.WriteLine($"Even if you renamed the file, the contents are identical (Hash: {fileHash}).");
+                Console.ResetColor();
+                return;
+            }
+
+            var existingName = collection.FindOne(x => x.SourceDocument == fileName);
+            if (existingName != null)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"\n[WARNING] UPLOAD REJECTED!");
+                Console.WriteLine($"A document named '{fileName}' is already in the database.");
+                Console.WriteLine($"If this is a new version of the document, please rename it (e.g., '{Path.GetFileNameWithoutExtension(fileName)}_v2{Path.GetExtension(fileName)}') and try again.");
+                Console.ResetColor();
+                return;
+            }
 
             int totalChunksCreated = 0;
 
-            using (PdfDocument document = PdfDocument.Open(pdfPath))
+            using (PdfDocument document = PdfDocument.Open(fileBytes))
             {
                 int totalPages = document.NumberOfPages;
                 Console.WriteLine($"[INFO] PDF opened successfully. Total Pages: {totalPages}\n");
@@ -70,13 +95,24 @@ namespace EnterpriseAI.DataIngester.Services
 
 
                     string pageText = ContentOrderTextExtractor.GetText(page);
-                    var chunks = CreateOverlappingChunks(pageText, page.Number);
+                    var chunks = CreateOverlappingChunks(pageText, page.Number, fileName, fileHash);
 
                     int textSaveCount = 0;
 
                     foreach (var chunk in chunks)
                     {
-                        chunk.Embedding = await _embeddingProvider.GenerateEmbeddingAsync(chunk.Content);
+                        var embedding = await _embeddingProvider.GenerateEmbeddingAsync(chunk.Content);
+                        if (embedding == null || embedding.Length == 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine($"\n[FATAL ERROR] Failed to generate vector embedding for text chunk.");
+                            Console.WriteLine("This is usually caused by an invalid API Key, network issue, or API quota limit.");
+                            Console.WriteLine("Ingestion aborted. Please check your appsettings.json API Key and try again.");
+                            Console.ResetColor();
+                            return;
+                        }
+
+                        chunk.Embedding = embedding;
                         collection.Insert(chunk);
                         textSaveCount++;
 
@@ -101,13 +137,13 @@ namespace EnterpriseAI.DataIngester.Services
                         Console.Write($"         Image {imgCount} analyzing... ");
                         if (image.TryGetPng(out byte[] imageBytes))
                         {
-                            await ProcessImageChunk(collection, page.Number, imgCount, imageBytes, "image/png");
+                            await ProcessImageChunk(collection, page.Number, imgCount, imageBytes, "image/png", fileName, fileHash);
                             Console.WriteLine("Success!");
                             imgCount++;
                         }
                         else if (image.TryGetBytesAsMemory(out var memoryBytes))
                         {
-                            await ProcessImageChunk(collection, page.Number, imgCount, memoryBytes.ToArray(), "image/jpeg");
+                            await ProcessImageChunk(collection, page.Number, imgCount, memoryBytes.ToArray(), "image/jpeg", fileName, fileHash);
                             Console.WriteLine("Success!");
                             imgCount++;
                         }
@@ -125,6 +161,8 @@ namespace EnterpriseAI.DataIngester.Services
 
             collection.EnsureIndex(x => x.ApplicationCode);
             collection.EnsureIndex(x => x.PageNumber);
+            collection.EnsureIndex(x => x.SourceDocument);
+            collection.EnsureIndex(x => x.FileHash);
 
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("\n=================================================");
@@ -138,7 +176,7 @@ namespace EnterpriseAI.DataIngester.Services
         /// Each chunk is up to ChunkSize characters, with ChunkOverlap characters
         /// carried over from the previous chunk to preserve context at boundaries.
         /// </summary>
-        private List<DocumentChunk> CreateOverlappingChunks(string pageText, int pageNumber)
+        private List<DocumentChunk> CreateOverlappingChunks(string pageText, int pageNumber, string sourceDocument, string fileHash)
         {
             var chunks = new List<DocumentChunk>();
 
@@ -185,7 +223,9 @@ namespace EnterpriseAI.DataIngester.Services
                         ModuleCode = $"Page_{pageNumber}_Chunk_{chunkIndex}",
                         Content = finalChunk,
                         PageNumber = pageNumber,
-                        IsImageDescription = false
+                        IsImageDescription = false,
+                        SourceDocument = sourceDocument,
+                        FileHash = fileHash
                     });
                     chunkIndex++;
                 }
@@ -220,7 +260,16 @@ namespace EnterpriseAI.DataIngester.Services
             return text.Length - 1; // No good break point found, use full length
         }
 
-        private async Task ProcessImageChunk(ILiteCollection<DocumentChunk> collection, int pageNum, int imgCount, byte[] bytes, string mime)
+        private string ComputeSha256Hash(byte[] rawData)
+        {
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                byte[] bytes = sha256Hash.ComputeHash(rawData);
+                return Convert.ToHexString(bytes).ToLowerInvariant();
+            }
+        }
+
+        private async Task ProcessImageChunk(ILiteCollection<DocumentChunk> collection, int pageNum, int imgCount, byte[] bytes, string mime, string sourceDocument, string fileHash)
         {
             string description = await _visionProvider.DescribeImageAsync(bytes, mime);
 
@@ -235,6 +284,16 @@ namespace EnterpriseAI.DataIngester.Services
             string imageUrl = $"/images/{fileName}";
             string finalContent = $"![Ekran Görüntüsü]({imageUrl})\n\n[SCREENSHOT DETAIL] {description}";
 
+            var embedding = await _embeddingProvider.GenerateEmbeddingAsync(finalContent);
+            if (embedding == null || embedding.Length == 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"\n[FATAL ERROR] Failed to generate vector embedding for image description.");
+                Console.WriteLine("Ingestion aborted. Please check your appsettings.json API Key and try again.");
+                Console.ResetColor();
+                throw new InvalidOperationException("Failed to generate embedding for image description. Invalid API Key.");
+            }
+
             var imgChunk = new DocumentChunk
             {
                 ApplicationCode = "DEMO",
@@ -242,7 +301,9 @@ namespace EnterpriseAI.DataIngester.Services
                 Content = finalContent,
                 PageNumber = pageNum,
                 IsImageDescription = true,
-                Embedding = await _embeddingProvider.GenerateEmbeddingAsync(finalContent)
+                SourceDocument = sourceDocument,
+                FileHash = fileHash,
+                Embedding = embedding
             };
             collection.Insert(imgChunk);
         }
