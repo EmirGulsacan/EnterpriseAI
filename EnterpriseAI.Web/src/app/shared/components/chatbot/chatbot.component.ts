@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, inject, signal, effect } from '@angular/core';
+import { Component, ElementRef, ViewChild, inject, signal, effect, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MarkdownModule } from 'ngx-markdown';
@@ -21,9 +21,15 @@ export class ChatbotComponent {
 
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
+  // Configuration inputs from Web Component attributes
+  apiUrl = input<string>('');
+  clientId = input<string>('');
+  clientSecret = input<string>('');
+
   // Angular 19 Signals for state management
   isOpen = signal<boolean>(false);
   isLoading = signal<boolean>(false);
+  selectedImageUrl = signal<string | null>(null);
   messages = signal<ChatMessage[]>([
     { role: 'assistant', content: 'Merhaba! Enterprise RAG sistemine hoş geldiniz. Size nasıl yardımcı olabilirim?' }
   ]);
@@ -51,7 +57,7 @@ export class ChatbotComponent {
     this.userInput.set(''); // Clear input
     this.isLoading.set(true);
 
-    this.chatService.askQuestion(prompt).subscribe({
+    this.chatService.askQuestion(prompt, this.apiUrl(), this.clientId(), this.clientSecret()).subscribe({
       next: (response) => {
         this.messages.update(msgs => [...msgs, { role: 'assistant', content: response }]);
         this.isLoading.set(false);
@@ -71,6 +77,18 @@ export class ChatbotComponent {
       event.preventDefault();
       this.sendMessage();
     }
+  }
+
+  onMessageClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (target.tagName.toLowerCase() === 'img') {
+      const img = target as HTMLImageElement;
+      this.selectedImageUrl.set(img.src);
+    }
+  }
+
+  closeImageModal(): void {
+    this.selectedImageUrl.set(null);
   }
 
   private scrollToBottom(): void {

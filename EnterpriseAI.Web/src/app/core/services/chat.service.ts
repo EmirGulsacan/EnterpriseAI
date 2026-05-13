@@ -1,6 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { Observable, of, throwError } from 'rxjs';
 
@@ -32,18 +31,18 @@ export class ChatService {
    * Authenticates with the API using ClientId and ClientSecret to retrieve a JWT token.
    * If a token is already cached, returns it immediately.
    */
-  private getToken(): Observable<string> {
+  private getToken(apiUrl: string, clientId: string, clientSecret: string): Observable<string> {
     const currentToken = this.jwtToken();
     if (currentToken) {
       return of(currentToken);
     }
 
     const payload = {
-      clientId: environment.auth.clientId,
-      clientSecret: environment.auth.clientSecret
+      clientId: clientId,
+      clientSecret: clientSecret
     };
 
-    return this.http.post<TokenResponse>(`${environment.apiUrl}/Auth/token`, payload).pipe(
+    return this.http.post<TokenResponse>(`${apiUrl}/Auth/token`, payload).pipe(
       map(response => response.token),
       tap(token => this.jwtToken.set(token)),
       catchError(error => {
@@ -56,8 +55,8 @@ export class ChatService {
   /**
    * Sends a user prompt to the RAG API, automatically handling the JWT Bearer token attachment.
    */
-  askQuestion(userPrompt: string): Observable<string> {
-    return this.getToken().pipe(
+  askQuestion(userPrompt: string, apiUrl: string, clientId: string, clientSecret: string): Observable<string> {
+    return this.getToken(apiUrl, clientId, clientSecret).pipe(
       switchMap(token => {
         const headers = new HttpHeaders({
           'Authorization': `Bearer ${token}`,
@@ -66,12 +65,12 @@ export class ChatService {
 
         const requestPayload: AiRequest = {
           applicationCode: 'DEMO',
-          systemInstruction: 'Sen kurumsal bir asistansın. SADECE sana sağlanan bağlam (context) verilerini kullanarak cevap ver. Eğer sorunun cevabı sana verilen bağlamda KESİNLİKLE YOKSA, kendi genel kültürünü kullanma ve yalnızca "Bu bilgiye kurumsal dokümanlarda ulaşılamıyor." yanıtını ver.',
+          systemInstruction: 'Sen kibar bir "Kurumsal Yapay Zeka Asistanısın". Eğer kullanıcı sadece "Merhaba", "Nasılsın", "Günaydın" gibi günlük selamlaşma ifadeleri kullanıyorsa, ona kibarca, kurumsal bir dille cevap ver ve "Size kurumsal dokümanlar ve kılavuzlar konusunda nasıl yardımcı olabilirim?" diye sor. ANCAK EN ÖNEMLİ KURAL: Kullanıcı selamlaşma DIŞINDA, bağlamda (context) bulunmayan herhangi bir bilgi, genel kültür, kod yazımı veya alakasız bir konu sorarsa KESİNLİKLE CEVAP VERME. Sadece "Bu bilgiye kurumsal dokümanlarda ulaşılamıyor." de. Asla kendi içsel bilgini kullanma.',
           contextData: '',
           userPrompt: userPrompt
         };
 
-        return this.http.post<AiResponse>(`${environment.apiUrl}/Ai/ask`, requestPayload, { headers });
+        return this.http.post<AiResponse>(`${apiUrl}/Ai/ask`, requestPayload, { headers });
       }),
       map(response => response.answer),
       catchError(error => {

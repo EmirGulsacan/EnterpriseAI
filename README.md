@@ -54,6 +54,16 @@ To start the backend server that will serve the RAG pipeline and static images:
 3. Start the development server: `npm start`
 4. Access the UI at `http://localhost:4200` and start chatting with your corporate data!
 
+### 5. Building & Running the Standalone Web Component
+To embed the chatbot into legacy or non-Angular apps (like ExtJS, React, plain HTML):
+1. Navigate to the `EnterpriseAI.Web` directory.
+2. Run the custom build script: `npm run build:component`
+   *(This script compiles the Angular app and bundles it into a single `enterprise-chatbot.js` and `enterprise-chatbot.css` file inside the `EnterpriseAI.Example` directory).*
+3. Navigate to the `EnterpriseAI.Example` directory: `cd ../EnterpriseAI.Example`
+4. Serve the directory to view the example integration: `npx serve`
+5. Open the provided localhost URL to see the Web Component in action.
+
+
 ---
 
 ## 🗺️ ROADMAP (Phase 2)

@@ -21,7 +21,7 @@
       </div>
 
       <!-- Messages Area -->
-      <div class="chat-messages" #scrollContainer>
+      <div class="chat-messages" #scrollContainer (click)="onMessageClick($event)">
         @for (msg of messages(); track $index) {
           <div class="message-row" [class.user-row]="msg.role === 'user'">
             <div class="bubble" [class.user-bubble]="msg.role === 'user'" [class.ai-bubble]="msg.role === 'assistant'">
@@ -74,4 +74,16 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
     }
   </button>
+
+  <!-- Image Lightbox Modal -->
+  @if (selectedImageUrl()) {
+    <div class="image-modal-overlay" (click)="closeImageModal()">
+      <div class="image-modal-content" (click)="$event.stopPropagation()">
+        <button class="close-modal-btn" (click)="closeImageModal()" aria-label="Kapat">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+        <img [src]="selectedImageUrl()" alt="Büyütülmüş Görsel">
+      </div>
+    </div>
+  }
 </div>
