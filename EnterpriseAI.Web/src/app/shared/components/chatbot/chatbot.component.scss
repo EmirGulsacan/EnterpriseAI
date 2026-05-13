@@ -1,0 +1,341 @@
+/* Variables */
+$primary-color: #0056b3;
+$primary-hover: #004494;
+$bg-color: #ffffff;
+$chat-bg: #f8f9fa;
+$user-msg-bg: #0056b3;
+$user-msg-text: #ffffff;
+$ai-msg-bg: #ffffff;
+$ai-msg-text: #333333;
+$border-color: #e9ecef;
+$shadow-light: 0 4px 15px rgba(0, 0, 0, 0.1);
+$shadow-heavy: 0 8px 30px rgba(0, 0, 0, 0.15);
+$radius-lg: 16px;
+$radius-sm: 8px;
+
+.chatbot-wrapper {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* Chat Window */
+.chat-window {
+  width: 380px;
+  height: 600px;
+  max-height: calc(100vh - 100px);
+  background: $bg-color;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-heavy;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: 16px;
+  animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  border: 1px solid $border-color;
+}
+
+/* Header */
+.chat-header {
+  background: $primary-color;
+  color: white;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .avatar-icon svg {
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    padding: 4px;
+  }
+
+  .title-area {
+    h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #4cd964;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    small {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+  }
+
+  .close-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+  }
+}
+
+/* Messages Area */
+.chat-messages {
+  flex: 1;
+  background: $chat-bg;
+  padding: 20px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-behavior: smooth;
+
+  /* Custom Scrollbar */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+  }
+}
+
+.message-row {
+  display: flex;
+  width: 100%;
+  
+  &.user-row {
+    justify-content: flex-end;
+  }
+}
+
+.bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  animation: messagePopIn 0.3s ease-out;
+
+  &.user-bubble {
+    background: $user-msg-bg;
+    color: $user-msg-text;
+    border-radius: $radius-lg $radius-lg 0 $radius-lg;
+    box-shadow: $shadow-light;
+  }
+
+  &.ai-bubble {
+    background: $ai-msg-bg;
+    color: $ai-msg-text;
+    border-radius: $radius-lg $radius-lg $radius-lg 0;
+    box-shadow: $shadow-light;
+    border: 1px solid $border-color;
+
+    /* Markdown Styling fixes within AI bubble */
+    ::ng-deep markdown {
+      p { margin-top: 0; margin-bottom: 8px; }
+      p:last-child { margin-bottom: 0; }
+      pre { 
+        background: #f1f3f5; 
+        padding: 8px; 
+        border-radius: $radius-sm;
+        overflow-x: auto;
+      }
+      code { 
+        background: #f1f3f5; 
+        padding: 2px 4px; 
+        border-radius: 4px; 
+        font-family: monospace;
+        font-size: 13px;
+      }
+      ul, ol { margin: 8px 0; padding-left: 20px; }
+      img {
+        max-width: 100%;
+        height: auto;
+        border-radius: $radius-sm;
+        margin: 8px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        display: block;
+      }
+    }
+  }
+}
+
+/* Typing Indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 16px;
+
+  span {
+    display: block;
+    width: 6px;
+    height: 6px;
+    background: #888;
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+  }
+
+  span:nth-child(1) { animation-delay: -0.32s; }
+  span:nth-child(2) { animation-delay: -0.16s; }
+}
+
+/* Input Area */
+.chat-input-area {
+  padding: 16px;
+  background: $bg-color;
+  border-top: 1px solid $border-color;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+
+  textarea {
+    flex: 1;
+    border: 1px solid $border-color;
+    border-radius: 20px;
+    padding: 12px 16px;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    max-height: 120px;
+    transition: border-color 0.2s;
+    font-family: inherit;
+
+    &:focus {
+      border-color: $primary-color;
+    }
+
+    &:disabled {
+      background: $chat-bg;
+      cursor: not-allowed;
+    }
+  }
+
+  .send-btn {
+    background: $primary-color;
+    color: white;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    flex-shrink: 0;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      margin-right: -2px; /* Visual center adjustment for the send icon */
+    }
+
+    &:hover:not(:disabled) {
+      background: $primary-hover;
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    &:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+/* Floating Toggle Button */
+.toggle-button {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: $primary-color;
+  color: white;
+  border: none;
+  box-shadow: $shadow-heavy;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.3s, background 0.2s;
+  z-index: 10000;
+
+  svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  &:hover {
+    background: $primary-hover;
+    transform: scale(1.05);
+  }
+
+  &.active {
+    background: #ff3b30;
+    &:hover { background: #d73228; }
+  }
+}
+
+/* Animations */
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes messagePopIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}

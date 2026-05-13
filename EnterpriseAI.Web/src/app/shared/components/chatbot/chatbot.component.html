@@ -1,0 +1,77 @@
+<div class="chatbot-wrapper">
+  
+  <!-- Chat Window -->
+  @if (isOpen()) {
+    <div class="chat-window">
+      
+      <!-- Header -->
+      <div class="chat-header">
+        <div class="header-info">
+          <div class="avatar-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+          </div>
+          <div class="title-area">
+            <h3>Enterprise RAG Asistanı</h3>
+            <span class="status-indicator"></span><small>Çevrimiçi</small>
+          </div>
+        </div>
+        <button class="close-btn" (click)="toggleChat()" aria-label="Kapat">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <!-- Messages Area -->
+      <div class="chat-messages" #scrollContainer>
+        @for (msg of messages(); track $index) {
+          <div class="message-row" [class.user-row]="msg.role === 'user'">
+            <div class="bubble" [class.user-bubble]="msg.role === 'user'" [class.ai-bubble]="msg.role === 'assistant'">
+              @if (msg.role === 'user') {
+                {{ msg.content }}
+              } @else {
+                <markdown [data]="msg.content"></markdown>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Typing Indicator -->
+        @if (isLoading()) {
+          <div class="message-row">
+            <div class="bubble ai-bubble typing-indicator">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Input Area -->
+      <div class="chat-input-area">
+        <textarea 
+          [ngModel]="userInput()" 
+          (ngModelChange)="userInput.set($event)"
+          (keydown)="handleKeyPress($event)"
+          placeholder="Asistana bir soru sorun..."
+          rows="1"
+          [disabled]="isLoading()"
+        ></textarea>
+        <button 
+          class="send-btn" 
+          (click)="sendMessage()" 
+          [disabled]="isLoading() || userInput().trim() === ''">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Floating Toggle Button -->
+  <button class="toggle-button" (click)="toggleChat()" [class.active]="isOpen()" aria-label="Sohbeti Aç">
+    @if (isOpen()) {
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    } @else {
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    }
+  </button>
+</div>

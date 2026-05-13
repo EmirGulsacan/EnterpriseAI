@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "ngx-markdown": "^21.3.0"
+  }
+}
