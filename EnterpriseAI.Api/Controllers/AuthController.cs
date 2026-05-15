@@ -1,5 +1,5 @@
-using EnterpriseAI.Api.Models;
-using EnterpriseAI.Shared.Options;
+using EnterpriseAI.Application.DTOs;
+using EnterpriseAI.Domain.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -46,3 +46,4 @@ namespace EnterpriseAI.Api.Controllers
         }
     }
 }
+

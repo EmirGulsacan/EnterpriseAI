@@ -1,76 +1,35 @@
-# Enterprise AI Gateway (Multimodal RAG Architecture)
+# Enterprise RAG Framework
 
-Welcome to the **Enterprise AI Gateway** – a powerful, production-ready Multimodal Retrieval-Augmented Generation (RAG) architecture. This system bridges the gap between raw corporate data (PDFs, images, screenshots) and intelligent, conversational AI, offering a standalone chatbot widget powered by a robust .NET 8 backend.
+A robust, enterprise-grade Retrieval-Augmented Generation (RAG) framework built with **.NET 8** and **Angular 19**. Designed for multi-tenant isolation, massive scale, and secure enterprise environments.
 
-## 🚀 Key Features & Architecture
-- **Sliding Window Chunking:** Intelligently splits large documents into context-aware chunks with overlaps, ensuring no semantic meaning is lost at chunk boundaries.
-- **In-Memory Cosine Similarity:** Fast, lightweight vector search to find the most relevant context blocks for the AI without heavy infrastructure dependencies.
-- **Multimodal Capabilities:** Utilizes Vision AI to extract, analyze, and store visual context (screenshots/images) from documents, serving them locally.
-- **Pluggable AI Providers:** Easily switch between Google Gemini, OpenAI, Claude, or local On-Premise models (via LiteLLM) using simple configuration changes.
-- **Standalone Chatbot Widget:** A sleek, responsive, and easily embeddable Angular 19 UI component with Markdown and image rendering support.
-- **Local Image Serving:** Images extracted from PDFs are stored locally and served statically, preserving data privacy and ensuring lightning-fast load times in the UI.
+## 🌟 Key Features
 
-## 🛠️ Technology Stack
-- **Backend:** .NET 8 (Web API & Console Applications)
-- **Architecture Patterns:** Clean Architecture principles, CQRS *(Prepared)*
-- **Database / Storage:** LiteDB (NoSQL Embedded Database for Vectors and Metadata)
-- **Document Processing:** PdfPig (Advanced PDF parsing and image extraction)
-- **Frontend:** Angular 19 (Standalone Components, Signals, SCSS)
-- **AI Integration:** Native Google Gemini integration, LiteLLM (Proxy for OpenAI, Claude, Llama 3)
+* **Strict Clean Architecture:** Completely dismantled generic Shared structures in favor of pure **Domain**, **Application**, and **Infrastructure** boundaries. High cohesion, low coupling.
+* **No-Repository Anti-Pattern:** Direct, strongly-typed generic abstraction mapping via `IApplicationDbContext` directly to `EF Core Set<T>()`, eliminating redundant repository layers.
+* **Advanced Multi-Tenancy:** Secure data isolation using pre-filtering on pgvector metadata. Queries are strictly bounded to the requesting tenant (`ApplicationCode`).
+* **Server-Sent Events (SSE) Streaming:** Real-time AI response streaming directly to the UI, coupled with an initial citations payload for instant references.
+* **Hybrid Multimodal RAG:** Not just text. Analyzes and embeds PDFs with complex layouts, and physically extracts images (saved to disk, tracked via JSONB) for vision-based queries.
+* **Modern Angular Citations UI:** Includes a dynamic Angular Web Component featuring a Perplexity-style collapsible citation list, typing animations, and a Lightbox for image reference previews.
 
----
+## 🏗️ Architecture
 
-## ⚙️ Installation & Setup
-
-### 1. Configuration (`appsettings.json`)
-Before running the system, configure your AI Provider keys. Update `appsettings.json` in both `EnterpriseAI.Api` and `EnterpriseAI.DataIngester` projects:
-
-```json
-"AiSettings": {
-  "ActiveProvider": "Gemini", // Options: Gemini, LiteLLM, OpenAI, Claude
-  "Gemini": {
-    "ApiKey": "YOUR_API_KEY_HERE",
-    "EmbeddingModel": "gemini-embedding-001",
-    "ChatModel": "gemini-flash-latest"
-  }
-}
+```
+├── EnterpriseAI.Domain/          # Core entities (DocumentChunk), Interfaces
+├── EnterpriseAI.Application/     # Business logic, Services, Interfaces (IApplicationDbContext)
+├── EnterpriseAI.Infrastructure/  # EF Core, PgVector, AI Providers (Gemini, Claude, etc.)
+├── EnterpriseAI.Api/             # API entry points, Auth, SSE Streaming
+├── EnterpriseAI.DataIngester/    # Console app for PDF processing and vectorization
+└── EnterpriseAI.Web/             # Angular 19 Frontend Web Component
 ```
 
-### 2. Running the Data Ingester (Knowledge Base Builder)
-To process your enterprise PDFs and build the initial vector database:
-1. Navigate to `EnterpriseAI.DataIngester`.
-2. Run the console application: `dotnet run`
-3. When prompted, provide the absolute path to your PDF file. The system will extract text, analyze images via Vision AI, generate embeddings, and save everything into the unified `Data/` folder.
+## 🚀 Getting Started
 
-### 3. Running the API
-To start the backend server that will serve the RAG pipeline and static images:
-1. Navigate to `EnterpriseAI.Api`.
-2. Run the API: `dotnet run`
-3. Ensure the API is running (default port is usually `http://localhost:5102` or `https://localhost:7114`).
+1. **Database Setup:** Ensure PostgreSQL with `pgvector` extension is running.
+2. **Configuration:** Copy `appsettings.example.json` to `appsettings.json` and fill in your connection strings and AI API Keys.
+3. **Ingestion:** Run the `EnterpriseAI.DataIngester` project to upload PDFs and generate vectors.
+4. **API:** Run `EnterpriseAI.Api`.
+5. **Frontend:** Serve the Angular component via `EnterpriseAI.Web` or use the pre-built `example.html` in `EnterpriseAI.Example`.
 
-### 4. Running the Chatbot Widget (Angular UI)
-1. Navigate to the `EnterpriseAI.Web` directory.
-2. Install dependencies: `npm install`
-3. Start the development server: `npm start`
-4. Access the UI at `http://localhost:4200` and start chatting with your corporate data!
-
-### 5. Building & Running the Standalone Web Component
-To embed the chatbot into legacy or non-Angular apps (like ExtJS, React, plain HTML):
-1. Navigate to the `EnterpriseAI.Web` directory.
-2. Run the custom build script: `npm run build:component`
-   *(This script compiles the Angular app and bundles it into a single `enterprise-chatbot.js` and `enterprise-chatbot.css` file inside the `EnterpriseAI.Example` directory).*
-3. Navigate to the `EnterpriseAI.Example` directory: `cd ../EnterpriseAI.Example`
-4. Serve the directory to view the example integration: `npx serve`
-5. Open the provided localhost URL to see the Web Component in action.
-
-
----
-
-## 🗺️ ROADMAP (Phase 2)
-The current `v1.0 (Phase 1)` master version establishes a flawless foundational architecture. The next phase will introduce massive enterprise-scale enhancements:
-
-- **1. Dedicated Vector Database (Qdrant / Milvus):** Transitioning from In-Memory LiteDB search to an industrial-grade Vector DB to support millions of document chunks with sub-millisecond retrieval times.
-- **2. SSE Streaming Responses:** Upgrading the Chatbot UX to stream AI responses word-by-word (Server-Sent Events) for a ChatGPT-like real-time experience.
-- **3. Hybrid Search & Re-ranking:** Combining BM25 keyword search with Vector Semantic Search, backed by a Cross-Encoder (Re-ranker) to achieve 99.9% accuracy and eliminate AI hallucinations.
-- **4. Document-Level RBAC (Role-Based Access Control):** Implementing strict security layers so employees can only query documents (e.g., HR, Finance) they are explicitly authorized to view based on their JWT claims.
-- **5. Asynchronous Message Queues (RabbitMQ & Hangfire):** Upgrading the document ingestion pipeline from a console app to a robust, background worker system, allowing parallel processing of massive PDF uploads without blocking the UI.
+## 🛡️ Security
+- `appsettings.json` and SSL certificates are strictly `.gitignore`'d.
+- Physical visual assets extracted from PDFs are isolated per tenant in local storage.

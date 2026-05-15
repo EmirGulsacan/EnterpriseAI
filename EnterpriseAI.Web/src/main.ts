@@ -9,3 +9,4 @@ createApplication(appConfig)
     customElements.define('enterprise-chatbot', chatbotElement);
   })
   .catch((err) => console.error(err));
+

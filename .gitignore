@@ -55,3 +55,15 @@ Data/Images/*.jpeg
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Security & Secrets (Explicitly ignored)
+appsettings.json
+appsettings.Development.json
+*.crt
+*.pem
+
+# Data & Physical Images
+DATA/
+
+# Allow example configs
+!appsettings.example.json

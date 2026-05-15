@@ -1,10 +1,10 @@
 <div class="chatbot-wrapper">
   
-  <!-- Chat Window -->
+  
   @if (isOpen()) {
     <div class="chat-window">
       
-      <!-- Header -->
+      
       <div class="chat-header">
         <div class="header-info">
           <div class="avatar-icon">
@@ -20,7 +20,7 @@
         </button>
       </div>
 
-      <!-- Messages Area -->
+      
       <div class="chat-messages" #scrollContainer (click)="onMessageClick($event)">
         @for (msg of messages(); track $index) {
           <div class="message-row" [class.user-row]="msg.role === 'user'">
@@ -29,12 +29,38 @@
                 {{ msg.content }}
               } @else {
                 <markdown [data]="msg.content"></markdown>
+                
+                @if (msg.references && msg.references.length > 0) {
+                  <details style="margin-top: 12px; font-size: 0.85em; color: #4b5563; cursor: pointer; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 2px;">
+                    <summary style="user-select: none; padding: 8px 12px; font-weight: 500; display: flex; align-items: center;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+                      {{msg.references.length}} Kaynak Tarandı
+                    </summary>
+                    <div style="padding: 12px; border-top: 1px solid #e2e8f0; max-height: 250px; overflow-y: auto;">
+                      <div style="display: flex; flex-direction: column; gap: 12px;">
+                        @for (ref of msg.references; track $index) {
+                          <div style="background: white; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <div style="display: flex; align-items: center; font-weight: 500; color: #1f2937; line-height: 1.4;">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; flex-shrink: 0; color: #6b7280;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                              <span>{{ ref.sourceDocument }} <span style="font-weight: normal; color: #6b7280; white-space: nowrap;">(Sayfa: {{ ref.pageNumber }})</span></span>
+                            </div>
+                            @if (ref.imagePath) {
+                              <div style="margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
+                                <img [src]="getBaseUrl() + ref.imagePath" alt="Kaynak Görseli" style="max-width: 100%; border-radius: 4px; cursor: pointer; display: block; border: 1px solid #f1f5f9; transition: transform 0.2s;" (click)="selectedImageUrl.set(getBaseUrl() + ref.imagePath); $event.stopPropagation()" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </details>
+                }
               }
             </div>
           </div>
         }
 
-        <!-- Typing Indicator -->
+        
         @if (isLoading()) {
           <div class="message-row">
             <div class="bubble ai-bubble typing-indicator">
@@ -46,7 +72,7 @@
         }
       </div>
 
-      <!-- Input Area -->
+      
       <div class="chat-input-area">
         <textarea 
           [ngModel]="userInput()" 
@@ -66,7 +92,7 @@
     </div>
   }
 
-  <!-- Floating Toggle Button -->
+  
   <button class="toggle-button" (click)="toggleChat()" [class.active]="isOpen()" aria-label="Sohbeti Aç">
     @if (isOpen()) {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -75,7 +101,7 @@
     }
   </button>
 
-  <!-- Image Lightbox Modal -->
+  
   @if (selectedImageUrl()) {
     <div class="image-modal-overlay" (click)="closeImageModal()">
       <div class="image-modal-content" (click)="$event.stopPropagation()">
@@ -87,3 +113,4 @@
     </div>
   }
 </div>
+

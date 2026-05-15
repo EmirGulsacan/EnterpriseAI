@@ -7,6 +7,7 @@ import { ChatService } from '../../../core/services/chat.service';
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  references?: any[];
 }
 
 @Component({
@@ -21,12 +22,11 @@ export class ChatbotComponent {
 
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
-  // Configuration inputs from Web Component attributes
   apiUrl = input<string>('');
   clientId = input<string>('');
   clientSecret = input<string>('');
+  applicationCode = input<string>('DEMO');
 
-  // Angular 19 Signals for state management
   isOpen = signal<boolean>(false);
   isLoading = signal<boolean>(false);
   selectedImageUrl = signal<string | null>(null);
@@ -37,7 +37,7 @@ export class ChatbotComponent {
   userInput = signal<string>('');
 
   constructor() {
-    // Automatically scroll to bottom whenever messages array changes
+
     effect(() => {
       this.messages(); // track dependency
       setTimeout(() => this.scrollToBottom(), 50);
@@ -52,21 +52,48 @@ export class ChatbotComponent {
     const prompt = this.userInput().trim();
     if (!prompt || this.isLoading()) return;
 
-    // Add user message to UI
     this.messages.update(msgs => [...msgs, { role: 'user', content: prompt }]);
     this.userInput.set(''); // Clear input
+
+    const assistantMessageIndex = this.messages().length;
+    this.messages.update(msgs => [...msgs, { role: 'assistant', content: '', references: [] }]);
+    
     this.isLoading.set(true);
 
-    this.chatService.askQuestion(prompt, this.apiUrl(), this.clientId(), this.clientSecret()).subscribe({
-      next: (response) => {
-        this.messages.update(msgs => [...msgs, { role: 'assistant', content: response }]);
-        this.isLoading.set(false);
+    this.chatService.askQuestionStream(prompt, this.apiUrl(), this.clientId(), this.clientSecret(), this.applicationCode()).subscribe({
+      next: (event) => {
+        if (event.type === 'references') {
+           this.messages.update(msgs => {
+              const updated = [...msgs];
+              updated[assistantMessageIndex].references = event.data;
+              return updated;
+           });
+        } else if (event.type === 'content') {
+           this.messages.update(msgs => {
+              const updated = [...msgs];
+              updated[assistantMessageIndex].content += event.data;
+              return updated;
+           });
+        } else if (event.type === 'error') {
+           this.messages.update(msgs => {
+              const updated = [...msgs];
+              updated[assistantMessageIndex].content += `\n\n**Hata:** ${event.data}`;
+              return updated;
+           });
+           this.isLoading.set(false);
+        } else if (event.type === 'done') {
+           this.isLoading.set(false);
+        }
       },
       error: (err) => {
-        this.messages.update(msgs => [...msgs, { 
-          role: 'assistant', 
-          content: `**Hata:** ${err.message}` 
-        }]);
+        this.messages.update(msgs => {
+          const updated = [...msgs];
+          updated[assistantMessageIndex].content = `**Hata:** ${err.message}`;
+          return updated;
+        });
+        this.isLoading.set(false);
+      },
+      complete: () => {
         this.isLoading.set(false);
       }
     });
@@ -91,6 +118,15 @@ export class ChatbotComponent {
     this.selectedImageUrl.set(null);
   }
 
+  getBaseUrl(): string {
+    try {
+      const url = new URL(this.apiUrl());
+      return `${url.protocol}//${url.host}`;
+    } catch {
+      return '';
+    }
+  }
+
   private scrollToBottom(): void {
     if (this.scrollContainer && this.scrollContainer.nativeElement) {
       const element = this.scrollContainer.nativeElement;
@@ -98,3 +134,4 @@ export class ChatbotComponent {
     }
   }
 }
+

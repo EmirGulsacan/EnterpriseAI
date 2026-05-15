@@ -1,8 +1,10 @@
-using EnterpriseAI.DataIngester.Services;
-using EnterpriseAI.Shared.Abstractions;
-using EnterpriseAI.Shared.Options;
-using EnterpriseAI.Shared.Providers.Gemini;
-using EnterpriseAI.Shared.Providers.LiteLlm;
+using EnterpriseAI.Application.Services;
+using EnterpriseAI.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using EnterpriseAI.Application.Interfaces;
+using EnterpriseAI.Domain.Options;
+using EnterpriseAI.Infrastructure.Providers.Gemini;
+using EnterpriseAI.Infrastructure.Providers.LiteLlm;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,6 +16,9 @@ var configuration = new ConfigurationBuilder()
 var services = new ServiceCollection();
 services.AddSingleton<IConfiguration>(configuration);
 
+services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"),
+    o => o.UseVector()));
 services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));
 services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
 services.Configure<LiteLlmOptions>(configuration.GetSection(LiteLlmOptions.SectionName));
@@ -23,7 +28,6 @@ services.Configure<ChunkingOptions>(configuration.GetSection(ChunkingOptions.Sec
 var activeProvider = configuration[AiOptions.SectionName + ":ActiveProvider"]
     ?? throw new InvalidOperationException("AiSettings:ActiveProvider is not configured.");
 
-// SSL bypass handler for on-premise/corporate networks
 var sslBypassHandler = new HttpClientHandler
 {
     ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
@@ -70,4 +74,13 @@ if (string.IsNullOrWhiteSpace(pdfPath) || !File.Exists(pdfPath))
     return;
 }
 
-await pipelineService.ProcessPdfAndSaveToDatabaseAsync(pdfPath);
+Console.Write("Enter the Application Code (Tenant ID) [Default: DEMO]: ");
+string? appCode = Console.ReadLine();
+if (string.IsNullOrWhiteSpace(appCode)) appCode = "DEMO";
+
+Console.Write("Enter the Document Category [Default: Uncategorized]: ");
+string? category = Console.ReadLine();
+if (string.IsNullOrWhiteSpace(category)) category = "Uncategorized";
+
+await pipelineService.ProcessPdfAndSaveToDatabaseAsync(pdfPath, appCode, category);
+

@@ -23,14 +23,10 @@ export interface AiResponse {
 })
 export class ChatService {
   private http = inject(HttpClient);
-  
-  // Cache the JWT token using a signal
+
   private jwtToken = signal<string | null>(null);
 
-  /**
-   * Authenticates with the API using ClientId and ClientSecret to retrieve a JWT token.
-   * If a token is already cached, returns it immediately.
-   */
+  
   private getToken(apiUrl: string, clientId: string, clientSecret: string): Observable<string> {
     const currentToken = this.jwtToken();
     if (currentToken) {
@@ -52,10 +48,8 @@ export class ChatService {
     );
   }
 
-  /**
-   * Sends a user prompt to the RAG API, automatically handling the JWT Bearer token attachment.
-   */
-  askQuestion(userPrompt: string, apiUrl: string, clientId: string, clientSecret: string): Observable<string> {
+  
+  askQuestion(userPrompt: string, apiUrl: string, clientId: string, clientSecret: string, applicationCode: string): Observable<string> {
     return this.getToken(apiUrl, clientId, clientSecret).pipe(
       switchMap(token => {
         const headers = new HttpHeaders({
@@ -64,7 +58,7 @@ export class ChatService {
         });
 
         const requestPayload: AiRequest = {
-          applicationCode: 'DEMO',
+          applicationCode: applicationCode,
           systemInstruction: 'Sen kibar bir "Kurumsal Yapay Zeka Asistanısın". Eğer kullanıcı sadece "Merhaba", "Nasılsın", "Günaydın" gibi günlük selamlaşma ifadeleri kullanıyorsa, ona kibarca, kurumsal bir dille cevap ver ve "Size kurumsal dokümanlar ve kılavuzlar konusunda nasıl yardımcı olabilirim?" diye sor. ANCAK EN ÖNEMLİ KURAL: Kullanıcı selamlaşma DIŞINDA, bağlamda (context) bulunmayan herhangi bir bilgi, genel kültür, kod yazımı veya alakasız bir konu sorarsa KESİNLİKLE CEVAP VERME. Sadece "Bu bilgiye kurumsal dokümanlarda ulaşılamıyor." de. Asla kendi içsel bilgini kullanma.',
           contextData: '',
           userPrompt: userPrompt
@@ -75,8 +69,7 @@ export class ChatService {
       map(response => response.answer),
       catchError(error => {
         console.error('RAG API Error:', error);
-        
-        // Handle 401 Unauthorized by clearing the cached token so the next request gets a fresh one
+
         if (error.status === 401) {
           this.jwtToken.set(null);
         }
@@ -85,4 +78,75 @@ export class ChatService {
       })
     );
   }
+
+  
+  askQuestionStream(userPrompt: string, apiUrl: string, clientId: string, clientSecret: string, applicationCode: string): Observable<any> {
+    return this.getToken(apiUrl, clientId, clientSecret).pipe(
+      switchMap(token => {
+        return new Observable<any>(observer => {
+          const requestPayload: AiRequest = {
+            applicationCode: applicationCode,
+            systemInstruction: 'Sen kibar bir "Kurumsal Yapay Zeka Asistanısın". Eğer kullanıcı sadece "Merhaba", "Nasılsın", "Günaydın" gibi günlük selamlaşma ifadeleri kullanıyorsa, ona kibarca, kurumsal bir dille cevap ver ve "Size kurumsal dokümanlar ve kılavuzlar konusunda nasıl yardımcı olabilirim?" diye sor. ANCAK EN ÖNEMLİ KURAL: Kullanıcı selamlaşma DIŞINDA, bağlamda (context) bulunmayan herhangi bir bilgi, genel kültür, kod yazımı veya alakasız bir konu sorarsa KESİNLİKLE CEVAP VERME. Sadece "Bu bilgiye kurumsal dokümanlarda ulaşılamıyor." de. Asla kendi içsel bilgini kullanma.',
+            contextData: '',
+            userPrompt: userPrompt
+          };
+
+          fetch(`${apiUrl}/Ai/stream`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestPayload)
+          }).then(async response => {
+            if (!response.ok) {
+              if (response.status === 401) {
+                this.jwtToken.set(null);
+              }
+              observer.error(new Error('Yapay zeka servisine erişilemedi. Lütfen daha sonra tekrar deneyin.'));
+              return;
+            }
+
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+
+            if (reader) {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                
+                for (let i = 0; i < lines.length - 1; i++) {
+                  const line = lines[i].trim();
+                  if (line.startsWith('data: ')) {
+                    const dataStr = line.substring(6);
+                    try {
+                      const dataObj = JSON.parse(dataStr);
+                      observer.next(dataObj);
+                      if (dataObj.type === 'done') {
+                         observer.complete();
+                         return;
+                      }
+                    } catch (e) {
+                      console.error('Error parsing SSE JSON', e, dataStr);
+                    }
+                  }
+                }
+                
+                buffer = lines[lines.length - 1];
+              }
+            }
+            observer.complete();
+          }).catch(err => {
+            observer.error(err);
+          });
+        });
+      })
+    );
+  }
 }
+
+

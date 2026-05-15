@@ -11,3 +11,4 @@ import { ChatbotComponent } from './shared/components/chatbot/chatbot.component'
 export class AppComponent {
   title = 'EnterpriseAI.UI';
 }
+

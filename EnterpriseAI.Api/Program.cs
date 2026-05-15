@@ -1,9 +1,11 @@
-using EnterpriseAI.Api.Services;
-using EnterpriseAI.Shared.Abstractions;
-using EnterpriseAI.Shared.Options;
-using EnterpriseAI.Shared.Providers;
-using EnterpriseAI.Shared.Providers.Gemini;
-using EnterpriseAI.Shared.Providers.LiteLlm;
+using EnterpriseAI.Application.Services;
+using EnterpriseAI.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using EnterpriseAI.Application.Interfaces;
+using EnterpriseAI.Domain.Options;
+using EnterpriseAI.Infrastructure.Providers;
+using EnterpriseAI.Infrastructure.Providers.Gemini;
+using EnterpriseAI.Infrastructure.Providers.LiteLlm;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -14,6 +16,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+    o => o.UseVector()));
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -88,6 +93,7 @@ else
     throw new InvalidOperationException($"Invalid AI Provider: {activeProvider}. Supported: Gemini, LiteLLM, OpenAI, Claude");
 }
 
+builder.Services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
 builder.Services.AddScoped<KnowledgeBaseService>();
 
 var jwtSecret = builder.Configuration["JwtSettings:Secret"]
@@ -117,7 +123,7 @@ if (app.Environment.IsDevelopment())
 
 
 var dbOptions = builder.Configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>();
-var imageStoragePath = EnterpriseAI.Shared.Utils.PathHelper.GetAbsolutePathRelativeToSolution(dbOptions?.ImageStoragePath ?? "Data/Images");
+var imageStoragePath = EnterpriseAI.Domain.Utils.PathHelper.GetAbsolutePathRelativeToSolution(dbOptions?.ImageStoragePath ?? "Data/Images");
 Directory.CreateDirectory(imageStoragePath);
 
 app.UseStaticFiles(new StaticFileOptions
@@ -133,3 +139,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
